@@ -38,7 +38,11 @@ namespace cc
         static PictureBox pb;
         static List<PictureBox> picture_boxes = new List<PictureBox>();
 
-
+        //the current set of picture boxes being used for the stage
+        static List<string> current_set = new List<string>() { 
+            //stage one values
+            "one", "one", "one", "one", "one"
+        };
         static int horizontal_space;
         static int y;
         static int x;
@@ -78,6 +82,34 @@ namespace cc
             stage_counter = 1;
             ImageSetup("one", 1);
         }
+        //This runs every 20 seconds, on a background thread
+
+        public class DifficultyScaling
+        {
+            public void RaiseDifficulty(int current_stage)
+            {
+                //if it's at max capacity, don't do an addition, just a swap
+                bool is_maxed = current_set.Count == 20 ? true : false;
+
+
+
+                //Check if all the values in the list are identical
+                if (!current_set[0].Equals(current_set[1]))
+                {
+                    //if they are not, don't update the image yet
+
+                }
+                else
+                {
+                    //If they are, switch to the next stronger attack
+
+                }
+                //Then check to see if it's reached the max count...
+
+
+            }
+        };
+      
         public void ImageSetup(string file_name, int stage)
         {
             List<PictureBox> picture_boxes = this.Controls.OfType<PictureBox>().ToList();
