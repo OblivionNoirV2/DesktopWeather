@@ -32,11 +32,13 @@ namespace cc
         //2 = right
         static int skew_direction;
         public static bool precalc_complete;
-        //int form_width = this.Width;
-        static Image post_resize;
 
+        static Image post_resize;
+        //this is set on load
+        static int form_width;
+        static int form_height;
         //same for height
-        //static double new_width = form_width / 40;
+        static double new_width = form_width / 40;
         //round down to int
         static int new_width_v2 = Convert.ToInt32(new_width);
         static PictureBox pb;
@@ -49,7 +51,7 @@ namespace cc
 
         static int screen_width;
         //Use 1080p as a base value, for only 1 pixel added 
-        readonly static double added_pix = this.Height / 1080;
+        readonly static double added_pix = form_height / 1080;
 
         readonly static int added_pix_int = Convert.ToByte(added_pix);
 
@@ -143,8 +145,10 @@ namespace cc
         {
             Bitmap imgbitmap = new Bitmap(precip_img);
             ResizeImage(imgbitmap, new Size(new_width_v2, new_width_v2));
+
+            MainClass mc = new MainClass();
             
-            AddBoxes();
+            mc.AddBoxes();
         }
 
 
@@ -162,7 +166,7 @@ namespace cc
                 {
                     Image = post_resize,
                     Size = new Size(new_width_v2, new_width_v2),
-                    Location = new Point(x, this.Height / y)
+                    Location = new Point(x, form_height / y)
                 };
                 picture_boxes.Add(pb);
                 this.Controls.Add(pb);
@@ -188,7 +192,7 @@ namespace cc
             protected DateTime nextRotation = DateTime.Now.AddMilliseconds(rotationDelay);
             //static ensures it is not modified and prevents range error
             protected static List<int> precalculations_list = new List<int>();
-
+            MainClass mc2 = new MainClass();
             /*Precalcs to prevent lag, like a game loading screen. 
             This only runs when settings are changed or the program is restarted. 
             Otherwise, it jumps straight to Animate()*/
@@ -208,7 +212,7 @@ namespace cc
                 precalculations_list.Clear();
 
                 screen_width = this.Width;
-
+     
                 //direction calculations 
                 if (is_displayed)
                 {   //x axis skew
@@ -296,12 +300,19 @@ namespace cc
                     || picture_boxes.Count < img_count - (img_count / 2))
                 {
                     temp_list.Clear();
-                    AddBoxes();
+              
+                    mc2.AddBoxes();
 
                 }
             }
 
         }; //animations class ends here
+
+        private void MainClass_Load(object sender, EventArgs e)
+        {
+            form_width = this.Width;
+            form_height = this.Height;
+        }
 
         /*private void RightLeft_SelectedIndexChanged(object sender, EventArgs e)
         {
