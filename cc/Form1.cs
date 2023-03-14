@@ -21,16 +21,10 @@ namespace cc
     public partial class MainClass : Form
     {
         //These values are all used in both major classes
-        static Image precip_img;
-        public static string precip_type;
-        static bool is_displayed;
-        static int intensity_value;
-        static int skew_strength;
-        static int s_d;
-        //0 = none 
-        //1 = left 
-        //2 = right
-        static int skew_direction;
+        static Image current_img;
+        
+        static int stage_counter;
+
         public static bool precalc_complete;
 
         static Image post_resize;
@@ -43,25 +37,32 @@ namespace cc
         static int new_width_v2 = Convert.ToInt32(new_width);
         static PictureBox pb;
         static List<PictureBox> picture_boxes = new List<PictureBox>();
-        static int img_count;
+
 
         static int horizontal_space;
         static int y;
         static int x;
-
+        public static int shield_count;
         static int screen_width;
         //Use 1080p as a base value, for only 1 pixel added 
         readonly static double added_pix = form_height / 1080;
 
         readonly static int added_pix_int = Convert.ToByte(added_pix);
 
-        static int x_interval;
 
         static Random rnd_interval = new Random();
         static Random rnd_start = new Random();
 
-        static string potential_change;
-        //is there a way to set the form opacity to 0, but keep the picture boxes on their own layer?
+        //Things that change per stage
+        static int img_speed;
+        static int img_count;
+        //number represents clicks required. Powerful = 8, X is a powerful that changes images and requires an x press
+        static int one_rate;
+        static int two_rate;
+        static int three_rate;
+        static int four_rate;
+        static int powerful_rate;
+        static int x_rate;
         public MainClass()
         {
             InitializeComponent();
@@ -72,62 +73,33 @@ namespace cc
 
         }
         //start here with the start button
-        public void ImageSetup(string pt)
+        private void StartButton_Click(object sender, EventArgs e)
+        {
+            stage_counter = 1;
+            ImageSetup("one", 1);
+        }
+        public void ImageSetup(string file_name, int stage)
         {
             List<PictureBox> picture_boxes = this.Controls.OfType<PictureBox>().ToList();
-
+            //clear any existing images
             foreach (PictureBox pb in picture_boxes)
             {
                 this.Controls.Remove(pb);
             }
-            LoadImage(pt + "nobg.png");
 
+            string set_path = Path.Combine(Application.StartupPath, file_name + ".png");
+            current_img = Image.FromFile(set_path);
+            Console.WriteLine(set_path);
+            ResizeBitmap();
         }
-        private void LoadImage(string path)
+        //loads an array of the file paths being used 
+        public void LoadImages(string path, int stage)
         {
+
             string set_path = Path.Combine(Application.StartupPath, path);
-            precip_img = Image.FromFile(set_path);
+            current_img = Image.FromFile(set_path);
             ResizeBitmap();
 
-        }
-
-        //call whenever  save or start is clicked
-        public void UpdateValues()
-        {
-
-            precalc_complete = false;
-
-            if (skew_direction == 1)
-            {   //negative could be what's causing the div by 0 error
-                s_d = -skew_strength;
-            }
-            else if (skew_direction == 2)
-            {
-                s_d = skew_strength;
-            }
-            //Reset the image being used
-
-            ImageSetup(precip_type);
-            this.Close();
-        }
-
-        //I think this would work if the settings form saved its settings properly, visually
-        private void CheckImg()
-        {
-
-            if (precip_type != potential_change)
-            {
-                ImageSetup(precip_type);
-            }
-        }
-
-        private void SaveButton_Click(object sender, EventArgs e)
-        {
-            UpdateValues();
-            //Reset the image being used
-            //only go the image operation again if it changed
-            ImageSetup(precip_type);
-            this.Close();
         }
 
 
@@ -143,7 +115,7 @@ namespace cc
         }
         private static void ResizeBitmap()
         {
-            Bitmap imgbitmap = new Bitmap(precip_img);
+            Bitmap imgbitmap = new Bitmap(current_img);
             ResizeImage(imgbitmap, new Size(new_width_v2, new_width_v2));
 
             MainClass mc = new MainClass();
@@ -192,37 +164,29 @@ namespace cc
             protected DateTime nextRotation = DateTime.Now.AddMilliseconds(rotationDelay);
             //static ensures it is not modified and prevents range error
             protected static List<int> precalculations_list = new List<int>();
+
+
             MainClass mc2 = new MainClass();
             /*Precalcs to prevent lag, like a game loading screen. 
             This only runs when settings are changed or the program is restarted. 
             Otherwise, it jumps straight to Animate()*/
+
             public void Precalculations()
             {   
       
-                //you are here ^
-                img_count = intensity_value * 5;
+                //This can be infinite, but maybe bring out multithreading for high values
+                img_count = stage_counter + 2;
 
                 horizontal_space = (form_width - (img_count * new_width_v2)) / (img_count + 1);
                 y = rnd_start.Next(10, 16);
                 //skew: 0, 1, 2 = None, Left, Right
-                //maybe remove the randomization and make the intervals set
                 int low_end = this.Height / 1000;
                 int high_end = this.Height / 600;
                 //clear to prevent endless list expansion
                 precalculations_list.Clear();
-
+                //in case the window was moved
                 screen_width = this.Width;
-     
-                //direction calculations 
-                if (is_displayed)
-                {   //x axis skew
-                    int[] x_intervals_array = { 0, 800, 720, 640, 560, 480, 400, 320, 240, 160, 80 };
-                    //where the actual fuck is it getting a div by 0?
-                    x_interval = screen_width / x_intervals_array[skew_strength];
-                    Console.WriteLine("x interval:" + x_interval);
 
-                }
-                //y axis
                 for (int i = 0; i < img_count; i++)
                 {
 
@@ -235,7 +199,7 @@ namespace cc
     
                 AniLoop();
             }
-            //it's never called before this
+            //gets slightly faster each stage
             public void AniLoop()
             {
                 System.Windows.Forms.Timer loop = new System.Windows.Forms.Timer
@@ -244,16 +208,14 @@ namespace cc
                 };
                 loop.Tick += (object sender, EventArgs e) =>
                 {
-                    Animate(precip_type);
+                    Animate();
                 };
                 loop.Start();
             }
-            //shared between all precip types, with rotation added for snow
-            //need to incorporate multithreading for tiers 2 and 3, and anything with the snow 
-            public void Animate(string pt)
+            public void Animate()
             {   //make sure this scales to image size
 
-                bool rotate = (DateTime.Now >= nextRotation);
+      
                 rn_index.Next(0, precalculations_list.Count - 1);
                 temp_list = picture_boxes.ToList();
                 hit_detection = this.ClientRectangle;
@@ -265,37 +227,32 @@ namespace cc
                     //Use the values from the list above, -1 to account for 0 indexing
                     int list_index = rn_index.Next(0, precalculations_list.Count - 1);
                     pb.Top += added_pix_int + precalculations_list[list_index];
-                    pb.Left += s_d;
-                    if (pt != "Rain" && rotate)
-                    {
-                        Image img = pb.Image;
-                        img.RotateFlip(RotateFlipType.Rotate90FlipNone);
-                        pb.Image = img;
+                 
+                  
 
-                    }
-                    //doesn't work with super low image sizes for some reason, but should be fine
-                    pb.MouseEnter += (sender, e) =>
+                    pb.MouseClick += (sender, e) =>
                     {
                         this.Controls.Remove(pb);
                         picture_boxes.Remove(pb);
                     };
-                    //when one touches the edge of the screen, clear the list/boxes 
-                    if (pb.Left < hit_detection.Left ||
-                        pb.Right > hit_detection.Right ||
-                        pb.Bottom > hit_detection.Bottom)
-                    {
-                        this.Controls.Remove(pb);
-                        picture_boxes.Remove(pb);
-                        hit_edge = true;
-                    }
 
-                }
-                if (rotate)
-                {
-                    nextRotation = DateTime.Now.AddMilliseconds(rotationDelay);
                 }
                 //cannot modify collection, so happens afterward
 
+                if (hit_edge)
+                {
+                    this.Controls.Remove(pb);
+                    picture_boxes.Remove(pb);
+                    if (shield_count < 1)
+                    {
+                        YouLose();
+
+                    } else
+                    {
+                        UpdateShieldCount(false);
+                    }
+                }
+                //change this to a minute timer for each stage
                 if (hit_edge && picture_boxes.Count < img_count - (img_count / 2)
                     || picture_boxes.Count < img_count - (img_count / 2))
                 {
@@ -308,11 +265,42 @@ namespace cc
 
         }; //animations class ends here
 
+        static public void YouLose()
+        {
+
+        }
+
+        static public void YouWin()
+        {
+
+        }
+
+        static public void UpdateStageCount()
+        {
+            //update the label
+        }
+        //true if we're adding to the count
+        static public void UpdateShieldCount(bool pos)
+        {
+            if (pos)
+            {
+                shield_count++;
+            } else
+            {
+                shield_count--;
+            }
+        }
         private void MainClass_Load(object sender, EventArgs e)
         {
             form_width = this.Width;
             form_height = this.Height;
         }
+
+    
+
+
+
+
 
         /*private void RightLeft_SelectedIndexChanged(object sender, EventArgs e)
         {
